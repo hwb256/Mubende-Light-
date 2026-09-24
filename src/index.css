@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
+select {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+select option {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+.dark select option,
+:root.dark select option,
+html.dark select option {
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+
+button {
+  cursor: pointer;
+}
+

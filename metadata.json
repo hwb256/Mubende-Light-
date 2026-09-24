@@ -1,0 +1,6 @@
+{
+  "name": "Mubende Light SSS Portal",
+  "description": "Integrated School Management System for Mubende Light Senior Secondary School supporting Admin, Faculty Teachers, and Parents.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

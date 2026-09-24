@@ -1,0 +1,89 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role-based access information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "fullName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "teacher", "parent"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["email", "fullName", "role"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Student record in the school",
+      "type": "object",
+      "properties": {
+        "admissionNumber": { "type": "string" },
+        "fullName": { "type": "string" },
+        "className": { "type": "string" },
+        "gender": { "type": "string", "enum": ["Male", "Female"] },
+        "status": { "type": "string", "enum": ["active", "suspended", "graduated", "inactive"] }
+      },
+      "required": ["admissionNumber", "fullName", "className", "gender"]
+    },
+    "Teacher": {
+      "title": "Teacher",
+      "description": "Faculty teacher profile and subject/class assignments",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "subjects": { "type": "array" },
+        "classAssignments": { "type": "array" }
+      },
+      "required": ["fullName", "email"]
+    },
+    "Parent": {
+      "title": "Parent",
+      "description": "Parent or guardian linked to students",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "childIds": { "type": "array" }
+      },
+      "required": ["fullName", "email"]
+    },
+    "SchoolSettings": {
+      "title": "SchoolSettings",
+      "description": "Master institution settings and academic configuration",
+      "type": "object",
+      "properties": {
+        "schoolName": { "type": "string" },
+        "currentTerm": { "type": "string" },
+        "currentYear": { "type": "number" },
+        "currency": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and credentials"
+    },
+    "/students/{studentId}": {
+      "schema": "Student",
+      "description": "Student database"
+    },
+    "/teachers/{teacherId}": {
+      "schema": "Teacher",
+      "description": "Faculty staff directory"
+    },
+    "/parents/{parentId}": {
+      "schema": "Parent",
+      "description": "Parents and guardians"
+    },
+    "/settings/{docId}": {
+      "schema": "SchoolSettings",
+      "description": "School configuration"
+    }
+  }
+}
