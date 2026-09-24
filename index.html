@@ -2,6 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function() {
+        var base = document.createElement('base');
+        if (window.location.hostname.indexOf('github.io') !== -1) {
+          var match = window.location.pathname.match(/^(\/[^\/]+)/);
+          base.href = (match ? match[1] : '') + '/';
+        } else {
+          base.href = '/';
+        }
+        document.head.appendChild(base);
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     <title>Mubende Light SSS Portal</title>
     <meta

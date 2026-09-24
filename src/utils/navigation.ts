@@ -8,8 +8,17 @@ export interface ParsedRoute {
 }
 
 export function getBaseUrl(): string {
-  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
-  return base;
+  if (typeof window !== 'undefined') {
+    // If running on GitHub Pages (e.g., username.github.io/repo-name/...)
+    if (window.location.hostname.includes('github.io')) {
+      const match = window.location.pathname.match(/^(\/[^\/]+)/);
+      if (match) {
+        return match[1].replace(/\/$/, '');
+      }
+    }
+  }
+  // Root domain for Netlify, Vercel, localhost, or custom domains
+  return '';
 }
 
 export function getAppPath(): string {

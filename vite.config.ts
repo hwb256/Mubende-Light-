@@ -21,8 +21,8 @@ function githubPagesSpaPlugin(): Plugin {
 
 export default defineConfig(() => {
   return {
-    // Set base path for GitHub Pages deployment (matches exact repo slug: "Mubende-Light-")
-    base: process.env.VITE_BASE_PATH || '/Mubende-Light-/',
+    // Relative base allows the bundle to run on Netlify (root domain /) as well as GitHub Pages (/Mubende-Light-/)
+    base: process.env.VITE_BASE_PATH || './',
     plugins: [react(), tailwindcss(), githubPagesSpaPlugin()],
     resolve: {
       alias: {
