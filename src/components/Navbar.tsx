@@ -3,6 +3,7 @@ import { Sun, Moon, LogOut, Menu, ShieldAlert, GraduationCap, Users } from 'luci
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { SCHOOL_LOGO_URL } from '../constants/school';
+import { navigateTo } from '../utils/navigation';
 
 interface NavbarProps {
   onToggleSidebar: () => void;
@@ -51,7 +52,15 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, currentSectionT
         >
           <Menu className="w-5 h-5" />
         </button>
-        <div className="flex items-center gap-2.5">
+        <div
+          onClick={() => {
+            if (activeRole) {
+              navigateTo(`/${activeRole}/${activeRole === 'parent' ? 'home' : 'dashboard'}`);
+            }
+          }}
+          className="flex items-center gap-2.5 cursor-pointer"
+          title="Return to Dashboard"
+        >
           <img
             src={SCHOOL_LOGO_URL}
             alt="Mubende Light Logo"
@@ -86,7 +95,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, currentSectionT
 
         {/* Logout button directly following theme toggle with no circular avatar */}
         <button
-          onClick={logout}
+          onClick={async () => {
+            await logout();
+            navigateTo('/');
+          }}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 transition-colors focus:outline-none cursor-pointer"
           title="Log Out of System"
         >

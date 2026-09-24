@@ -1,13 +1,29 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import fs from 'fs';
 import path from 'path';
-import {defineConfig} from 'vite';
+import {defineConfig, Plugin} from 'vite';
+
+// Automatically generates dist/404.html from dist/index.html so deep links and unique URLs work on GitHub Pages
+function githubPagesSpaPlugin(): Plugin {
+  return {
+    name: 'github-pages-spa',
+    closeBundle() {
+      const distDir = path.resolve(import.meta.dirname, 'dist');
+      const indexPath = path.resolve(distDir, 'index.html');
+      const notFoundPath = path.resolve(distDir, '404.html');
+      if (fs.existsSync(indexPath)) {
+        fs.copyFileSync(indexPath, notFoundPath);
+      }
+    },
+  };
+}
 
 export default defineConfig(() => {
   return {
     // Set base path for GitHub Pages deployment (matches exact repo slug: "Mubende-Light-")
     base: process.env.VITE_BASE_PATH || '/Mubende-Light-/',
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), githubPagesSpaPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname, '.'),

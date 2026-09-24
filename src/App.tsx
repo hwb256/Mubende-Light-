@@ -39,6 +39,7 @@ import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
 import { LandingPage } from './components/LandingPage';
 import { LoginPage } from './components/LoginPage';
+import { getAppPath, navigateTo, parseRoute } from './utils/navigation';
 
 // Role Views
 import { AdminViews } from './components/admin/AdminViews';
@@ -49,10 +50,68 @@ const AppContent: React.FC = () => {
   const { currentUser, userProfile, activeRole, loading } = useAuth();
   const { settings, currentTerm, currentYear } = useSchoolSettings();
 
-  // Selected landing/login state
-  const [selectedRoleForLogin, setSelectedRoleForLogin] = useState<Role | null>(null);
+  // Initialize route from current browser URL
+  const initialRoute = parseRoute(getAppPath());
+  const [selectedRoleForLogin, setSelectedRoleForLogin] = useState<Role | null>(() => {
+    return initialRoute.isLogin ? initialRoute.role : null;
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [currentSection, setCurrentSection] = useState('dashboard');
+  const [currentSection, setCurrentSection] = useState<string>(() => {
+    return initialRoute.section || (activeRole === 'parent' ? 'home' : 'dashboard');
+  });
+
+  // Listen to browser Back/Forward (popstate) & custom app navigation events
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const route = parseRoute(getAppPath());
+      if (route.isLogin) {
+        setSelectedRoleForLogin(route.role);
+      } else if (!route.role) {
+        setSelectedRoleForLogin(null);
+      }
+      if (route.section) {
+        setCurrentSection(route.section);
+      }
+    };
+
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('app:navigate', handleUrlChange);
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('app:navigate', handleUrlChange);
+    };
+  }, []);
+
+  // Synchronize URL and currentSection whenever role changes or login occurs
+  useEffect(() => {
+    if (!currentUser) {
+      if (selectedRoleForLogin) {
+        navigateTo(`/login/${selectedRoleForLogin}`, true);
+      }
+      return;
+    }
+
+    if (activeRole) {
+      const route = parseRoute(getAppPath());
+      if (route.role === activeRole && route.section && !route.isLogin) {
+        setCurrentSection(route.section);
+      } else {
+        const defaultSec = activeRole === 'parent' ? 'home' : 'dashboard';
+        const targetSec = currentSection || defaultSec;
+        setCurrentSection(targetSec);
+        navigateTo(`/${activeRole}/${targetSec}`, true);
+      }
+    }
+  }, [currentUser, activeRole]);
+
+  // Handler for navigation with unique URL updates
+  const handleSelectSection = (sec: string) => {
+    setCurrentSection(sec);
+    setSidebarOpen(false);
+    if (activeRole) {
+      navigateTo(`/${activeRole}/${sec}`);
+    }
+  };
 
   // Real-time Firestore Data Stores
   const [students, setStudents] = useState<Student[]>([]);
@@ -70,15 +129,6 @@ const AppContent: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [enrollmentHistory, setEnrollmentHistory] = useState<EnrollmentHistory[]>([]);
-
-  // Synchronize default section when switching roles
-  useEffect(() => {
-    if (activeRole === 'parent') {
-      setCurrentSection('home');
-    } else {
-      setCurrentSection('dashboard');
-    }
-  }, [activeRole]);
 
   // Firestore Real-time listeners - only connect when user is authenticated
   useEffect(() => {
@@ -250,12 +300,24 @@ const AppContent: React.FC = () => {
       return (
         <LoginPage
           role={selectedRoleForLogin}
-          onBack={() => setSelectedRoleForLogin(null)}
-          onSuccess={() => setSelectedRoleForLogin(null)}
+          onBack={() => {
+            setSelectedRoleForLogin(null);
+            navigateTo('/');
+          }}
+          onSuccess={() => {
+            setSelectedRoleForLogin(null);
+          }}
         />
       );
     }
-    return <LandingPage onSelectRole={(role) => setSelectedRoleForLogin(role)} />;
+    return (
+      <LandingPage
+        onSelectRole={(role) => {
+          setSelectedRoleForLogin(role);
+          navigateTo(`/login/${role}`);
+        }}
+      />
+    );
   }
 
   // Active Teacher Profile (if teacher logged in)
@@ -292,10 +354,7 @@ const AppContent: React.FC = () => {
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           currentSection={currentSection}
-          onSelectSection={(sec) => {
-            setCurrentSection(sec);
-            setSidebarOpen(false);
-          }}
+          onSelectSection={handleSelectSection}
           pendingApprovalsCount={pendingApprovalsCount}
           pendingSubmissionsCount={pendingSubmissionsCount}
         />
@@ -322,7 +381,7 @@ const AppContent: React.FC = () => {
                 subjects={subjects}
                 auditLogs={auditLogs}
                 settings={settings}
-                onNavigate={(sec) => setCurrentSection(sec)}
+                onNavigate={handleSelectSection}
                 onRefreshData={handleRefreshData}
               />
             ) : activeRole === 'teacher' ? (
@@ -361,7 +420,7 @@ const AppContent: React.FC = () => {
         <BottomNav
           role={activeRole}
           currentSection={currentSection}
-          onNavigate={(sec) => setCurrentSection(sec)}
+          onNavigate={handleSelectSection}
           pendingApprovalsCount={pendingApprovalsCount}
         />
       )}
