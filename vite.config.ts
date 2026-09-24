@@ -5,8 +5,8 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    // Set base path for GitHub Pages deployment (matches repo name: "Mubende Light" -> /Mubende-Light/)
-    base: process.env.VITE_BASE_PATH || '/Mubende-Light/',
+    // Set base path for GitHub Pages deployment (matches exact repo slug: "Mubende-Light-")
+    base: process.env.VITE_BASE_PATH || '/Mubende-Light-/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
