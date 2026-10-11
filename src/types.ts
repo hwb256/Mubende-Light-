@@ -258,6 +258,12 @@ export interface TeacherSubmission {
   approvedBy?: string;
 }
 
+export interface SubjectComment {
+  subjectId: string;
+  subjectName: string;
+  comment: string;
+}
+
 export interface ReportCard {
   id: string;
   studentId: string;
@@ -273,6 +279,8 @@ export interface ReportCard {
   isIncomplete?: boolean;
   adminComment?: string;
   teacherComment?: string;
+  performanceSummary?: string;
+  subjectComments?: SubjectComment[];
   conduct?: string;
   status?: 'draft' | 'published' | 'active';
   compiledAt?: any;
@@ -352,4 +360,14 @@ export interface SystemSettings {
   email?: string;
   contactEmail?: string;
   address?: string;
+  generalTermFee?: number;
+  headteacherPhone?: string;
+  headteacherEmail?: string;
+  headteacherWhatsapp?: string;
+  bursarPhone?: string;
+  bursarEmail?: string;
+  bursarWhatsapp?: string;
+  dosPhone?: string;
+  dosEmail?: string;
+  dosWhatsapp?: string;
 }

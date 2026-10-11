@@ -263,7 +263,10 @@ export const TeacherViews: React.FC<TeacherViewsProps> = ({
               <h2 className="text-base font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
                 Faculty Instructor Portal &bull; {teacherProfile?.fullName || currentUser?.displayName || 'Faculty Staff'}
               </h2>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                Welcome back, {teacherProfile?.fullName || currentUser?.displayName || 'Faculty Staff'}!
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">
                 Term: <strong>{currentTerm} ({currentYear})</strong> &bull; Assigned Streams: {assignedClasses.join(', ')}
               </p>
             </div>

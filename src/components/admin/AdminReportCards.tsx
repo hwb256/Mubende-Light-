@@ -3,6 +3,7 @@ import {
   collection,
   doc,
   writeBatch,
+  updateDoc,
   serverTimestamp,
 } from 'firebase/firestore';
 import {
@@ -16,9 +17,14 @@ import {
   Users,
   ChevronDown,
   ChevronUp,
+  Send,
+  Save,
+  Clock,
+  Sparkles,
 } from 'lucide-react';
 import { db } from '../../firebase';
 import { useSchoolSettings } from '../../context/SchoolSettingsContext';
+import { useAuth } from '../../context/AuthContext';
 import { ALL_CLASSES, SCHOOL_LOGO_URL } from '../../constants/school';
 import {
   Student,
@@ -43,20 +49,34 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
   notifyAudit,
 }) => {
   const { settings, currentTerm, currentYear } = useSchoolSettings();
+  const { currentUser, userProfile } = useAuth();
   const [repClass, setRepClass] = useState('S.1T');
   const [repTerm, setRepTerm] = useState(currentTerm || 'Term 1');
   const [repYear, setRepYear] = useState<number>(currentYear || 2026);
   const [compiling, setCompiling] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [compileSuccess, setCompileSuccess] = useState<string | null>(null);
   const [compileError, setCompileError] = useState<string | null>(null);
   const [selectedReport, setSelectedReport] = useState<ReportCard | null>(null);
 
+  // Per-student editing state for comments & conduct
+  const [editingComments, setEditingComments] = useState<Record<string, string>>({});
+  const [editingConducts, setEditingConducts] = useState<Record<string, string>>({});
+  const [savingCardId, setSavingCardId] = useState<string | null>(null);
+
   // Collapsible cards state: collapsed by default
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
 
+  const currentAdminAttribution =
+    userProfile?.fullName || currentUser?.displayName || currentUser?.email || 'Headteacher Administrator';
+
+  // Strict year-scoped filter with NO fallback
   const classReports = reports.filter(
-    r => (r.className === repClass || r.classId === repClass) && (r.term === repTerm) && (r.year === repYear || !r.year)
+    r => (r.className === repClass || r.classId === repClass) && (r.term === repTerm) && (r.year === repYear)
   );
+
+  const draftCount = classReports.filter(r => r.status === 'draft' || !r.status).length;
+  const publishedCount = classReports.filter(r => r.status === 'published').length;
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => ({ ...prev, [id]: !prev[id] }));
@@ -88,11 +108,29 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
         studentName: string;
         average: number;
         subjectCount: number;
+        subjectComments: Array<{ subjectId: string; subjectName: string; comment: string }>;
+        existingConduct: string;
+        existingAdminComment: string;
       }> = [];
 
       classStudents.forEach(stu => {
+        // Strict year match without || !r.year
         const stuResults = results.filter(
-          r => r.studentId === stu.id && r.term === repTerm && (r.year === repYear || !r.year)
+          r => r.studentId === stu.id && r.term === repTerm && r.year === repYear
+        );
+
+        // Collect teacher subject comments
+        const subjectComments = stuResults
+          .filter(r => Boolean(r.comment && r.comment.trim()))
+          .map(r => ({
+            subjectId: r.subjectId,
+            subjectName: getSubjectDisplayName(r.subjectName || r.subjectId),
+            comment: r.comment!.trim(),
+          }));
+
+        // Preserve any previously edited admin comments or conduct
+        const existingReport = reports.find(
+          r => r.studentId === stu.id && r.term === repTerm && r.year === repYear
         );
 
         if (stuResults.length > 0) {
@@ -115,6 +153,9 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
             studentName: stu.fullName,
             average: overallAvg,
             subjectCount: subjectMap.size,
+            subjectComments,
+            existingConduct: existingReport?.conduct || '',
+            existingAdminComment: existingReport?.adminComment || '',
           });
         } else {
           studentAverages.push({
@@ -122,6 +163,9 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
             studentName: stu.fullName,
             average: 0,
             subjectCount: 0,
+            subjectComments: [],
+            existingConduct: existingReport?.conduct || '',
+            existingAdminComment: existingReport?.adminComment || '',
           });
         }
       });
@@ -133,6 +177,9 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
         studentName: string;
         average: number;
         position: number;
+        subjectComments: Array<{ subjectId: string; subjectName: string; comment: string }>;
+        existingConduct: string;
+        existingAdminComment: string;
       }> = [];
 
       let currentRank = 1;
@@ -145,19 +192,22 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
           studentName: studentAverages[i].studentName,
           average: studentAverages[i].average,
           position: currentRank,
+          subjectComments: studentAverages[i].subjectComments,
+          existingConduct: studentAverages[i].existingConduct,
+          existingAdminComment: studentAverages[i].existingAdminComment,
         });
       }
 
-      // Batch Writes
+      // Batch Writes in DRAFT status
       const batch = writeBatch(db);
       rankedStudents.forEach(item => {
         const docId = `${item.studentId}_${repTerm}_${repYear}`;
         const ref = doc(db, 'reportCards', docId);
 
-        let remark = 'Excellent performance; keeps up the dedication.';
-        if (item.average < 50) remark = 'Requires targeted remedial intervention in core subjects.';
-        else if (item.average < 65) remark = 'Fair academic effort; has capability to improve higher.';
-        else if (item.average < 75) remark = 'Good academic standing; steady intellectual growth.';
+        let performanceSummary = 'Excellent performance; keeps up the dedication.';
+        if (item.average < 50) performanceSummary = 'Requires targeted remedial intervention in core subjects.';
+        else if (item.average < 65) performanceSummary = 'Fair academic effort; has capability to improve higher.';
+        else if (item.average < 75) performanceSummary = 'Good academic standing; steady intellectual growth.';
 
         batch.set(ref, {
           studentId: item.studentId,
@@ -168,20 +218,21 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
           average: item.average,
           position: item.position,
           totalStudents: classStudents.length,
-          adminComment: remark,
-          teacherComment: remark,
-          conduct: 'Exemplary',
-          status: 'published',
+          performanceSummary,
+          subjectComments: item.subjectComments,
+          adminComment: item.existingAdminComment || '',
+          conduct: item.existingConduct || '', // Neutral unset by default
+          status: 'draft', // DRAFT before explicit publish
           compiledAt: serverTimestamp(),
-          compiledBy: 'Headteacher',
+          compiledBy: currentAdminAttribution,
           generatedAt: serverTimestamp(),
         }, { merge: true });
       });
 
       await batch.commit();
-      await notifyAudit('COMPILE_CLASS_REPORTS', 'reportCards', `${repClass}_${repTerm}_${repYear}`);
+      await notifyAudit('COMPILE_CLASS_REPORTS_DRAFT', 'reportCards', `${repClass}_${repTerm}_${repYear}`);
       setCompileSuccess(
-        `Successfully compiled ${rankedStudents.length} terminal report cards for ${repClass} (${repTerm} ${repYear})!`
+        `Successfully compiled ${rankedStudents.length} report cards as DRAFTS for ${repClass} (${repTerm} ${repYear})! Please review conduct, add admin comments, and click "Publish to Parents" when ready.`
       );
       await onRefreshData();
     } catch (err: any) {
@@ -189,6 +240,71 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
       setCompileError(`[${err.code || 'COMPILE_ERROR'}] ${err.message || 'Failed to compile report cards.'}`);
     } finally {
       setCompiling(false);
+    }
+  };
+
+  const handlePublishAllToParents = async () => {
+    if (classReports.length === 0) return;
+    setPublishing(true);
+    setCompileSuccess(null);
+    setCompileError(null);
+    try {
+      const batch = writeBatch(db);
+      classReports.forEach(r => {
+        const ref = doc(db, 'reportCards', r.id);
+        batch.update(ref, {
+          status: 'published',
+          publishedAt: serverTimestamp(),
+        });
+      });
+      await batch.commit();
+      await notifyAudit('PUBLISH_CLASS_REPORTS', 'reportCards', `${repClass}_${repTerm}_${repYear}`);
+      setCompileSuccess(
+        `Published all ${classReports.length} report cards for ${repClass} (${repTerm} ${repYear}) to parents!`
+      );
+      await onRefreshData();
+    } catch (err: any) {
+      console.error("Publish all error:", err);
+      setCompileError(`[${err.code || 'PUBLISH_ERROR'}] ${err.message || 'Failed to publish reports.'}`);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const handleSaveStudentReview = async (reportId: string) => {
+    setSavingCardId(reportId);
+    try {
+      const ref = doc(db, 'reportCards', reportId);
+      const updates: any = {
+        updatedAt: serverTimestamp(),
+      };
+      if (editingConducts[reportId] !== undefined) {
+        updates.conduct = editingConducts[reportId];
+      }
+      if (editingComments[reportId] !== undefined) {
+        updates.adminComment = editingComments[reportId];
+      }
+      await updateDoc(ref, updates);
+      await onRefreshData();
+    } catch (err: any) {
+      console.error("Save student review error:", err);
+    } finally {
+      setSavingCardId(null);
+    }
+  };
+
+  const handleToggleReportStatus = async (report: ReportCard) => {
+    const nextStatus = report.status === 'published' ? 'draft' : 'published';
+    try {
+      const ref = doc(db, 'reportCards', report.id);
+      await updateDoc(ref, {
+        status: nextStatus,
+        publishedAt: nextStatus === 'published' ? serverTimestamp() : null,
+        updatedAt: serverTimestamp(),
+      });
+      await onRefreshData();
+    } catch (err: any) {
+      console.error("Toggle report status error:", err);
     }
   };
 
@@ -200,65 +316,86 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
             Terminal Report Cards &amp; Academic Ranking
           </h2>
           <p className="text-[11px] text-slate-500">
-            Compile fair per-subject averages, assign real competitive rankings with ties, and publish official terminal reports.
+            Compile fair per-subject averages, preserve real teacher remarks, customize conduct, and review drafts before publishing to parents.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {classReports.length > 0 && (
             <button
               onClick={toggleAll}
-              className="px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
             >
               Toggle Expand All
             </button>
           )}
+
+          {draftCount > 0 && (
+            <button
+              onClick={handlePublishAllToParents}
+              disabled={publishing || compiling}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
+              title="Publish all compiled drafts to parent portals"
+            >
+              <Send className="w-3.5 h-3.5" />
+              {publishing ? 'Publishing...' : `Publish to Parents (${draftCount} Drafts)`}
+            </button>
+          )}
+
           <button
             onClick={handleCompileClassReports}
-            disabled={compiling}
+            disabled={compiling || publishing}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
           >
-            <Play className="w-4 h-4" /> {compiling ? 'Compiling Reports...' : 'Compile Class Reports'}
+            <Play className="w-4 h-4" /> {compiling ? 'Compiling Drafts...' : 'Compile Class Reports (Draft)'}
           </button>
         </div>
       </div>
 
       {/* Class Stream Selectors */}
-      <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-4">
-        <div>
-          <label className="block text-[11px] font-semibold text-slate-500 mb-1">Class Stream</label>
-          <select
-            value={repClass}
-            onChange={(e) => setRepClass(e.target.value)}
-            className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs font-medium"
-          >
-            {ALL_CLASSES.map(c => (
-              <option key={c.display} value={c.display}>{c.display}</option>
-            ))}
-          </select>
+      <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Class Stream</label>
+            <select
+              value={repClass}
+              onChange={(e) => setRepClass(e.target.value)}
+              className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs font-bold"
+            >
+              {ALL_CLASSES.map(c => (
+                <option key={c.display} value={c.display}>{c.display}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Academic Term</label>
+            <select
+              value={repTerm}
+              onChange={(e) => setRepTerm(e.target.value)}
+              className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs font-bold"
+            >
+              <option value="Term 1">Term 1</option>
+              <option value="Term 2">Term 2</option>
+              <option value="Term 3">Term 3</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Academic Year</label>
+            <input
+              type="number"
+              value={repYear}
+              onChange={(e) => setRepYear(parseInt(e.target.value) || currentYear)}
+              className="w-24 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs font-bold"
+            />
+          </div>
         </div>
-        <div>
-          <label className="block text-[11px] font-semibold text-slate-500 mb-1">Academic Term</label>
-          <select
-            value={repTerm}
-            onChange={(e) => setRepTerm(e.target.value)}
-            className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs font-medium"
-          >
-            <option value="Term 1">Term 1</option>
-            <option value="Term 2">Term 2</option>
-            <option value="Term 3">Term 3</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-[11px] font-semibold text-slate-500 mb-1">Academic Year</label>
-          <input
-            type="number"
-            value={repYear}
-            onChange={(e) => setRepYear(parseInt(e.target.value) || currentYear)}
-            className="w-24 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs font-medium"
-          />
-        </div>
-        <div className="pt-4 text-xs text-slate-500">
-          Compiled Cards in Stream: <strong>{classReports.length}</strong>
+
+        <div className="flex items-center gap-3 text-xs">
+          <div className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 font-bold">
+            Drafts: {draftCount}
+          </div>
+          <div className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 font-bold">
+            Published: {publishedCount}
+          </div>
         </div>
       </div>
 
@@ -280,7 +417,7 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
       <div className="space-y-3">
         {classReports.length === 0 ? (
           <div className="p-8 text-center text-slate-500 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs">
-            No compiled report cards found for {repClass} ({repTerm} {repYear}). Click <strong>"Compile Class Reports"</strong> above to calculate rankings.
+            No compiled report cards found for {repClass} ({repTerm} {repYear}). Click <strong>&quot;Compile Class Reports (Draft)&quot;</strong> above to calculate rankings and review candidate drafts.
           </div>
         ) : (
           classReports
@@ -288,11 +425,19 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
             .map(r => {
               const stu = students.find(s => s.id === r.studentId);
               const isExpanded = !!expandedIds[r.id];
+              const isPublished = r.status === 'published';
+              const currentConduct = editingConducts[r.id] !== undefined ? editingConducts[r.id] : (r.conduct || '');
+              const currentAdminComment = editingComments[r.id] !== undefined ? editingComments[r.id] : (r.adminComment || '');
+              const isSaving = savingCardId === r.id;
 
               return (
                 <div
                   key={r.id}
-                  className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden transition-colors"
+                  className={`rounded-xl border transition-colors bg-white dark:bg-slate-900 shadow-xs overflow-hidden ${
+                    isPublished
+                      ? 'border-emerald-500/30 dark:border-emerald-500/20'
+                      : 'border-amber-500/30 dark:border-amber-500/20'
+                  }`}
                 >
                   {/* Header: Clickable to expand/collapse */}
                   <div
@@ -304,22 +449,47 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
                         #{r.position}
                       </span>
                       <div>
-                        <h4 className="font-bold text-sm text-slate-900 dark:text-white">
-                          {stu?.fullName || 'Student Ward'}
-                        </h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                            {stu?.fullName || 'Student Ward'}
+                          </h4>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                              isPublished
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                            }`}
+                          >
+                            {isPublished ? 'Published' : 'Draft'}
+                          </span>
+                        </div>
                         <div className="text-[11px] text-slate-400 font-mono">
                           Adm: {stu?.admissionNumber || 'N/A'} &bull; Avg: <strong className="text-emerald-600 dark:text-emerald-400">{r.average}%</strong>
+                          {r.conduct ? ` • Conduct: ${r.conduct}` : ' • Conduct: (Unset)'}
                         </div>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <button
+                        onClick={() => handleToggleReportStatus(r)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-xs ${
+                          isPublished
+                            ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 border border-amber-300 dark:border-amber-800'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        }`}
+                        title={isPublished ? 'Revert to draft (hide from parents)' : 'Publish to parents'}
+                      >
+                        {isPublished ? 'Revert to Draft' : 'Publish to Parents'}
+                      </button>
+
+                      <button
                         onClick={() => setSelectedReport(r)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold cursor-pointer transition-colors shadow-xs"
                       >
                         <Printer className="w-3.5 h-3.5" /> View / Print
                       </button>
+
                       <button
                         onClick={() => toggleExpand(r.id)}
                         className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 cursor-pointer ml-1"
@@ -331,8 +501,8 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
 
                   {/* Body: Collapsible by default */}
                   {isExpanded && (
-                    <div className="p-4 pt-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/20 space-y-3 text-xs">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="p-4 pt-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/20 space-y-4 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                         <div>
                           <span className="text-slate-400 font-medium block">Terminal Average:</span>
                           <span className="font-extrabold text-sm text-emerald-600 dark:text-emerald-400 block mt-0.5">
@@ -347,13 +517,98 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
                         </div>
                         <div>
                           <span className="text-slate-400 font-medium block">Evaluation Status:</span>
-                          <span className="font-semibold text-slate-900 dark:text-slate-100 block mt-0.5">Official &amp; Published</span>
+                          <span className="font-semibold text-slate-900 dark:text-slate-100 block mt-0.5">
+                            {isPublished ? 'Official & Published' : 'Draft (Internal Review)'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-medium block">Compiled By:</span>
+                          <span className="font-semibold text-slate-900 dark:text-slate-100 block mt-0.5 truncate">
+                            {r.compiledBy || currentAdminAttribution}
+                          </span>
                         </div>
                       </div>
 
-                      <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800">
-                        <span className="text-slate-400 font-medium">Headteacher Remarks: </span>
-                        <span className="italic text-slate-700 dark:text-slate-300">"{r.adminComment || r.teacherComment || 'Satisfactory'}"</span>
+                      {/* Performance Band Summary */}
+                      <div className="p-3 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-500/20">
+                        <span className="font-bold text-blue-700 dark:text-blue-300 block mb-0.5">
+                          Calculated Performance Band Summary:
+                        </span>
+                        <p className="italic text-slate-700 dark:text-slate-300">
+                          &quot;{r.performanceSummary || 'Calculated from overall average.'}&quot;
+                        </p>
+                      </div>
+
+                      {/* Real Teacher Comments per Subject */}
+                      <div className="space-y-1.5">
+                        <span className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[11px] block">
+                          Real Teacher Remarks by Subject:
+                        </span>
+                        {(!r.subjectComments || r.subjectComments.length === 0) ? (
+                          <p className="text-slate-400 italic">No subject-specific teacher remarks registered yet.</p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {r.subjectComments.map(sc => (
+                              <div key={sc.subjectId} className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                                <span className="font-bold text-slate-900 dark:text-white block text-[11px]">
+                                  {sc.subjectName}:
+                                </span>
+                                <span className="text-slate-600 dark:text-slate-400 italic text-xs">
+                                  &quot;{sc.comment}&quot;
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Conduct & Admin Remarks Editor */}
+                      <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                        <div>
+                          <label className="block text-slate-500 font-medium mb-1">
+                            Conduct &amp; Moral Evaluation:
+                          </label>
+                          <select
+                            value={currentConduct}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setEditingConducts(prev => ({ ...prev, [r.id]: val }));
+                            }}
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold"
+                          >
+                            <option value="">-- Select Conduct (Unset) --</option>
+                            <option value="Excellent">Excellent</option>
+                            <option value="Good">Good</option>
+                            <option value="Fair">Fair</option>
+                            <option value="Needs Improvement">Needs Improvement</option>
+                          </select>
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="block text-slate-500 font-medium mb-1">
+                            Headteacher Administrator Remark (Custom):
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={currentAdminComment}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setEditingComments(prev => ({ ...prev, [r.id]: val }));
+                              }}
+                              placeholder="Enter personalized administration comment for this candidate..."
+                              className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                            />
+                            <button
+                              onClick={() => handleSaveStudentReview(r.id)}
+                              disabled={isSaving}
+                              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                            >
+                              <Save className="w-3.5 h-3.5" />
+                              {isSaving ? 'Saving...' : 'Save Review'}
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -371,7 +626,7 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
               <div className="flex items-center gap-3">
                 <img
                   src={SCHOOL_LOGO_URL}
-                  alt="Mubende Light SSS"
+                  alt={settings.schoolName || 'Mubende Light SSS'}
                   className="w-12 h-12 rounded-full object-cover border-2 border-blue-500"
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22%3E%3Crect fill=%22%230f172a%22 width=%2248%22 height=%2248%22 rx=%2224%22/%3E%3Ctext x=%2224%22 y=%2229%22 text-anchor=middle fill=white font-size=12 font-weight=bold%3EMLSS%3C/text%3E%3C/svg%3E';
@@ -379,9 +634,9 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
                 />
                 <div>
                   <h2 className="text-base font-black text-slate-900 dark:text-white uppercase">
-                    {settings.schoolName}
+                    {settings.schoolName || 'MUBENDE LIGHT SENIOR SECONDARY SCHOOL'}
                   </h2>
-                  <p className="text-[11px] text-blue-500 font-semibold italic">&ldquo;{settings.motto}&rdquo;</p>
+                  <p className="text-[11px] text-blue-500 font-semibold italic">&ldquo;{settings.motto || 'Strive for Academic and Moral Excellence'}&rdquo;</p>
                   <p className="text-[10px] text-slate-400">Terminal Progress Report &bull; {selectedReport.term} ({selectedReport.year})</p>
                 </div>
               </div>
@@ -418,17 +673,17 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
               </div>
             </div>
 
-            {/* Subject Breakdown */}
+            {/* Subject Breakdown with Teacher Comments */}
             <div className="space-y-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                Subject Performance Evaluations
+                Subject Performance Evaluations &amp; Teacher Remarks
               </span>
               <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                 {results
                   .filter(
                     r => r.studentId === selectedReport.studentId &&
                          r.term === selectedReport.term &&
-                         (r.year === selectedReport.year || !r.year)
+                         r.year === selectedReport.year
                   )
                   .map(r => (
                     <div
@@ -453,9 +708,11 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
                           <span className="font-semibold text-slate-800 dark:text-slate-200">{r.grade}</span>
                         </div>
                       </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 italic pt-1 border-t border-slate-200/40 dark:border-slate-700/30">
-                        "{r.comment || 'Satisfactory academic progress.'}"
-                      </div>
+                      {r.comment && (
+                        <div className="text-[11px] text-slate-600 dark:text-slate-400 italic pt-1 border-t border-slate-200/40 dark:border-slate-700/30">
+                          Teacher Remark: &ldquo;{r.comment}&rdquo;
+                        </div>
+                      )}
                     </div>
                   ))}
               </div>
@@ -467,12 +724,20 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
                 <span className="font-extrabold text-blue-600">{selectedReport.average}%</span>
               </div>
               <div>
+                <span className="font-bold text-slate-700 dark:text-slate-300">Performance Summary:</span>{' '}
+                <span className="italic text-slate-600 dark:text-slate-400">{selectedReport.performanceSummary || 'Standard progress.'}</span>
+              </div>
+              <div>
                 <span className="font-bold text-slate-700 dark:text-slate-300">Headteacher Remark:</span>{' '}
-                <span className="italic text-slate-600 dark:text-slate-400">{selectedReport.adminComment || selectedReport.teacherComment}</span>
+                <span className="italic text-slate-600 dark:text-slate-400">{selectedReport.adminComment || 'Pending administration review.'}</span>
               </div>
               <div>
                 <span className="font-bold text-slate-700 dark:text-slate-300">Conduct &amp; Discipline:</span>{' '}
-                <span className="text-slate-600 dark:text-slate-400">{selectedReport.conduct || 'Exemplary'}</span>
+                <span className="text-slate-600 dark:text-slate-400 font-semibold">{selectedReport.conduct || 'Not Set'}</span>
+              </div>
+              <div>
+                <span className="font-bold text-slate-700 dark:text-slate-300">Certified By:</span>{' '}
+                <span className="text-slate-600 dark:text-slate-400">{selectedReport.compiledBy || currentAdminAttribution}</span>
               </div>
             </div>
 
@@ -490,3 +755,4 @@ export const AdminReportCards: React.FC<AdminReportCardsProps> = ({
     </div>
   );
 };
+

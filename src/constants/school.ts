@@ -46,7 +46,7 @@ export const DEFAULT_SUBJECTS: Subject[] = [
 
 export const DEFAULT_SETTINGS: SystemSettings = {
   schoolName: 'MUBENDE LIGHT SENIOR SECONDARY SCHOOL',
-  motto: 'Education is Light.',
+  motto: 'Strive for Academic and Moral Excellence',
   currentTerm: 'Term 1',
   currentYear: 2026,
   academicYear: 2026,
@@ -56,4 +56,14 @@ export const DEFAULT_SETTINGS: SystemSettings = {
   email: 'admin@mubendelight.sc.ug',
   contactEmail: 'admin@mubendelight.sc.ug',
   address: 'Mubende Municipality, Uganda',
+  generalTermFee: 198000,
+  headteacherPhone: '+256 772 123 456',
+  headteacherEmail: 'headteacher@mubendelight.sc.ug',
+  headteacherWhatsapp: '256772123456',
+  bursarPhone: '+256 701 987 654',
+  bursarEmail: 'bursar@mubendelight.sc.ug',
+  bursarWhatsapp: '256701987654',
+  dosPhone: '+256 782 554 433',
+  dosEmail: 'academics@mubendelight.sc.ug',
+  dosWhatsapp: '256782554433',
 };

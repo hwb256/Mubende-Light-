@@ -146,6 +146,26 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ notifyAudit }) => 
 
           <div>
             <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+              General Term Fees per Student (UGX)
+            </label>
+            <input
+              type="number"
+              min={0}
+              step={1000}
+              required
+              value={form.generalTermFee ?? 198000}
+              onChange={(e) => setForm({ ...form, generalTermFee: Number(e.target.value) || 0 })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-bold text-emerald-600 dark:text-emerald-400"
+            />
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              Default baseline institutional billing fee charged per term for each enrolled student.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
               Official Contact Phone
             </label>
             <input
@@ -155,18 +175,18 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ notifyAudit }) => 
               className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100"
             />
           </div>
-        </div>
 
-        <div>
-          <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-            Official Contact Email
-          </label>
-          <input
-            type="email"
-            value={form.contactEmail || form.email || ''}
-            onChange={(e) => setForm({ ...form, contactEmail: e.target.value, email: e.target.value })}
-            className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100"
-          />
+          <div>
+            <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+              Official Contact Email
+            </label>
+            <input
+              type="email"
+              value={form.contactEmail || form.email || ''}
+              onChange={(e) => setForm({ ...form, contactEmail: e.target.value, email: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100"
+            />
+          </div>
         </div>
 
         <div>
@@ -179,6 +199,135 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ notifyAudit }) => 
             onChange={(e) => setForm({ ...form, address: e.target.value })}
             className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100"
           />
+        </div>
+
+        {/* Support & Emergency Contacts Directory Configuration */}
+        <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
+          <div>
+            <h3 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-xs">
+              Parent Portal Support &amp; Emergency Contacts Directory
+            </h3>
+            <p className="text-[11px] text-slate-500">
+              Configure the exact direct call lines, WhatsApp numbers, and emails displayed to parents in their support desk.
+            </p>
+          </div>
+
+          {/* 1. Headteacher Contacts */}
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
+            <span className="font-bold text-blue-600 dark:text-blue-400 block text-xs">
+              1. Headteacher&apos;s Office (Administration &amp; Discipline)
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-0.5">Direct Phone</label>
+                <input
+                  type="text"
+                  value={form.headteacherPhone || ''}
+                  onChange={(e) => setForm({ ...form, headteacherPhone: e.target.value })}
+                  placeholder="+256 772 123 456"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-0.5">WhatsApp Number</label>
+                <input
+                  type="text"
+                  value={form.headteacherWhatsapp || ''}
+                  onChange={(e) => setForm({ ...form, headteacherWhatsapp: e.target.value })}
+                  placeholder="256772123456"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-0.5">Official Email</label>
+                <input
+                  type="email"
+                  value={form.headteacherEmail || ''}
+                  onChange={(e) => setForm({ ...form, headteacherEmail: e.target.value })}
+                  placeholder="headteacher@mubendelight.sc.ug"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Bursar Contacts */}
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
+            <span className="font-bold text-amber-600 dark:text-amber-400 block text-xs">
+              2. Bursar &amp; Accounts Desk (Fees &amp; Verification)
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-0.5">Direct Phone</label>
+                <input
+                  type="text"
+                  value={form.bursarPhone || ''}
+                  onChange={(e) => setForm({ ...form, bursarPhone: e.target.value })}
+                  placeholder="+256 701 987 654"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-0.5">WhatsApp Number</label>
+                <input
+                  type="text"
+                  value={form.bursarWhatsapp || ''}
+                  onChange={(e) => setForm({ ...form, bursarWhatsapp: e.target.value })}
+                  placeholder="256701987654"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-0.5">Bursary Email</label>
+                <input
+                  type="email"
+                  value={form.bursarEmail || ''}
+                  onChange={(e) => setForm({ ...form, bursarEmail: e.target.value })}
+                  placeholder="bursar@mubendelight.sc.ug"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 3. DOS Contacts */}
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 block text-xs">
+              3. Director of Studies - DOS (Academics &amp; Results)
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-0.5">Direct Phone</label>
+                <input
+                  type="text"
+                  value={form.dosPhone || ''}
+                  onChange={(e) => setForm({ ...form, dosPhone: e.target.value })}
+                  placeholder="+256 782 554 433"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-0.5">WhatsApp Number</label>
+                <input
+                  type="text"
+                  value={form.dosWhatsapp || ''}
+                  onChange={(e) => setForm({ ...form, dosWhatsapp: e.target.value })}
+                  placeholder="256782554433"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-0.5">Academics Email</label>
+                <input
+                  type="email"
+                  value={form.dosEmail || ''}
+                  onChange={(e) => setForm({ ...form, dosEmail: e.target.value })}
+                  placeholder="academics@mubendelight.sc.ug"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="pt-2 flex justify-end">

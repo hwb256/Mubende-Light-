@@ -4,6 +4,7 @@ import {
   onSnapshot,
   query,
   orderBy,
+  where,
   doc,
   setDoc,
   getDocs,
@@ -195,10 +196,15 @@ const AppContent: React.FC = () => {
     }, err => console.warn("Results sync:", err.message));
 
     // 11. Report Cards
-    const unsubReports = onSnapshot(collection(db, 'reportCards'), snap => {
+    const isStaff = userProfile?.role === 'admin' || userProfile?.role === 'teacher';
+    const reportsQuery = isStaff
+      ? collection(db, 'reportCards')
+      : query(collection(db, 'reportCards'), where('status', '==', 'published'));
+
+    const unsubReports = onSnapshot(reportsQuery, (snap) => {
       const list: ReportCard[] = snap.docs.map(d => ({ id: d.id, ...d.data() } as ReportCard));
       setReports(list);
-    }, err => console.warn("Reports sync:", err.message));
+    }, (err) => console.warn("Reports sync:", err.message));
 
     // 12. Announcements
     const unsubAnnouncements = onSnapshot(collection(db, 'announcements'), snap => {
@@ -245,7 +251,7 @@ const AppContent: React.FC = () => {
       unsubAudit();
       unsubHistory();
     };
-  }, [currentUser]);
+  }, [currentUser, userProfile?.role]);
 
   // Seed default data if database is fresh (only for authenticated admin)
   useEffect(() => {

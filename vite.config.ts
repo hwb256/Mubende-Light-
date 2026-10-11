@@ -19,10 +19,11 @@ function githubPagesSpaPlugin(): Plugin {
   };
 }
 
-export default defineConfig(() => {
+export default defineConfig(({ command }) => {
   return {
-    // Relative base allows the bundle to run on Netlify (root domain /) as well as GitHub Pages (/Mubende-Light-/)
-    base: process.env.VITE_BASE_PATH || './',
+    // In dev mode (serve), base must be '/' for local module resolution.
+    // In build mode, relative base allows running on Netlify (/) or GitHub Pages (/Mubende-Light-/)
+    base: command === 'serve' ? '/' : (process.env.VITE_BASE_PATH || './'),
     plugins: [react(), tailwindcss(), githubPagesSpaPlugin()],
     resolve: {
       alias: {
@@ -31,9 +32,9 @@ export default defineConfig(() => {
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+            port: 3000,
+      host: '0.0.0.0',
       hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
   };

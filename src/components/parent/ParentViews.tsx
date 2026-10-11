@@ -215,12 +215,18 @@ export const ParentViews: React.FC<ParentViewsProps> = ({
 
   const studentPayments = payments.filter(p => p.studentId === activeStudent?.id);
   const studentApprovals = paymentApprovals.filter(p => p.studentId === activeStudent?.id);
-  const studentReports = reports.filter(r => r.studentId === activeStudent?.id);
+  // Show only PUBLISHED report cards to parents (drafts remain hidden during admin compilation)
+  const studentReports = reports.filter(r => r.studentId === activeStudent?.id && r.status === 'published');
   const studentResults = results.filter(r => r.studentId === activeStudent?.id);
   const studentAttendance = attendance.filter(a => a.studentId === activeStudent?.id);
 
-  // Financial calculations
-  const totalBilled = studentFee?.totalFees || studentFee?.amount || 850000;
+  // Financial calculations with dynamic generalTermFee (default 198,000 UGX)
+  const totalBilled =
+    studentFee?.totalFee ||
+    studentFee?.totalFees ||
+    studentFee?.amount ||
+    settings.generalTermFee ||
+    198000;
   const totalPaid = studentFee?.paidAmount || 0;
   const balanceRemaining = Math.max(0, totalBilled - totalPaid);
   const isCleared = balanceRemaining === 0 && totalPaid > 0;
@@ -232,9 +238,28 @@ export const ParentViews: React.FC<ParentViewsProps> = ({
   const totalDays = studentAttendance.length;
   const attendanceRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 100;
 
-  // Multi-child selection bar at the very top of the page
+  const parentDisplayName =
+    parentProfile?.fullName ||
+    currentUser?.displayName ||
+    (currentUser?.email ? currentUser.email.split('@')[0] : 'Parent / Guardian');
+
+  // Multi-child selection bar at the very top of the page with personalized hero greeting
   const childSelectorHeader = (
     <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs mb-6">
+      <div className="pb-3 mb-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+            Parent &amp; Guardian Workspace
+          </span>
+          <p className="text-sm font-extrabold text-cyan-600 dark:text-cyan-400">
+            Welcome back, {parentDisplayName}!
+          </p>
+        </div>
+        <span className="text-[11px] text-slate-400 font-medium">
+          {currentTerm} &bull; {currentYear}
+        </span>
+      </div>
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
@@ -322,16 +347,16 @@ export const ParentViews: React.FC<ParentViewsProps> = ({
           </p>
           <div className="pt-2 space-y-2 text-xs">
             <a
-              href="tel:+256772123456"
+              href={`tel:${settings.headteacherPhone || '+256 772 123 456'}`}
               className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-700 dark:text-slate-300 hover:text-blue-600 transition-colors"
             >
               <span className="flex items-center gap-2 font-semibold">
-                <PhoneCall className="w-3.5 h-3.5 text-blue-600" /> +256 772 123 456
+                <PhoneCall className="w-3.5 h-3.5 text-blue-600" /> {settings.headteacherPhone || '+256 772 123 456'}
               </span>
               <span className="text-[10px] font-bold text-blue-600 uppercase">Direct Call</span>
             </a>
             <a
-              href="https://wa.me/256772123456?text=Hello%20Headteacher%20Mubende%20Light%20SSS,%20I%20am%20contacting%20you%20regarding%20my%20child"
+              href={`https://wa.me/${(settings.headteacherWhatsapp || '256772123456').replace(/\+/g, '')}?text=Hello%20Headteacher%20Mubende%20Light%20SSS,%20I%20am%20contacting%20you%20regarding%20my%20child`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 transition-colors"
@@ -342,11 +367,11 @@ export const ParentViews: React.FC<ParentViewsProps> = ({
               <span className="text-[10px] font-bold text-emerald-600 uppercase">Instant</span>
             </a>
             <a
-              href="mailto:headteacher@mubendelight.sc.ug?subject=Parent%20Inquiry%20-%20Mubende%20Light%20SSS"
+              href={`mailto:${settings.headteacherEmail || 'headteacher@mubendelight.sc.ug'}?subject=Parent%20Inquiry%20-%20Mubende%20Light%20SSS`}
               className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
             >
               <span className="flex items-center gap-2 font-semibold">
-                <Mail className="w-3.5 h-3.5 text-slate-500" /> headteacher@mubendelight.sc.ug
+                <Mail className="w-3.5 h-3.5 text-slate-500" /> {settings.headteacherEmail || 'headteacher@mubendelight.sc.ug'}
               </span>
               <span className="text-[10px] font-bold text-slate-500 uppercase">Email</span>
             </a>
@@ -373,16 +398,16 @@ export const ParentViews: React.FC<ParentViewsProps> = ({
           </p>
           <div className="pt-2 space-y-2 text-xs">
             <a
-              href="tel:+256701987654"
+              href={`tel:${settings.bursarPhone || '+256 701 987 654'}`}
               className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-700 dark:text-slate-300 hover:text-amber-600 transition-colors"
             >
               <span className="flex items-center gap-2 font-semibold">
-                <PhoneCall className="w-3.5 h-3.5 text-amber-600" /> +256 701 987 654
+                <PhoneCall className="w-3.5 h-3.5 text-amber-600" /> {settings.bursarPhone || '+256 701 987 654'}
               </span>
               <span className="text-[10px] font-bold text-amber-600 uppercase">Direct Call</span>
             </a>
             <a
-              href="https://wa.me/256701987654?text=Hello%20Bursar%20Mubende%20Light%20SSS,%20I%20am%20inquiry%20about%20fees%20clearance%20for%20my%20ward"
+              href={`https://wa.me/${(settings.bursarWhatsapp || '256701987654').replace(/\+/g, '')}?text=Hello%20Bursar%20Mubende%20Light%20SSS,%20I%20am%20inquiry%20about%20fees%20clearance%20for%20my%20ward`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 transition-colors"
@@ -393,11 +418,11 @@ export const ParentViews: React.FC<ParentViewsProps> = ({
               <span className="text-[10px] font-bold text-emerald-600 uppercase">Instant</span>
             </a>
             <a
-              href="mailto:bursar@mubendelight.sc.ug?subject=School%20Fees%20Inquiry%20-%20Mubende%20Light%20SSS"
+              href={`mailto:${settings.bursarEmail || 'bursar@mubendelight.sc.ug'}?subject=School%20Fees%20Inquiry%20-%20Mubende%20Light%20SSS`}
               className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
             >
               <span className="flex items-center gap-2 font-semibold">
-                <Mail className="w-3.5 h-3.5 text-slate-500" /> bursar@mubendelight.sc.ug
+                <Mail className="w-3.5 h-3.5 text-slate-500" /> {settings.bursarEmail || 'bursar@mubendelight.sc.ug'}
               </span>
               <span className="text-[10px] font-bold text-slate-500 uppercase">Email</span>
             </a>
@@ -424,16 +449,16 @@ export const ParentViews: React.FC<ParentViewsProps> = ({
           </p>
           <div className="pt-2 space-y-2 text-xs">
             <a
-              href="tel:+256782554433"
+              href={`tel:${settings.dosPhone || '+256 782 554 433'}`}
               className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-300 hover:text-emerald-600 transition-colors"
             >
               <span className="flex items-center gap-2 font-semibold">
-                <PhoneCall className="w-3.5 h-3.5 text-emerald-600" /> +256 782 554 433
+                <PhoneCall className="w-3.5 h-3.5 text-emerald-600" /> {settings.dosPhone || '+256 782 554 433'}
               </span>
               <span className="text-[10px] font-bold text-emerald-600 uppercase">Direct Call</span>
             </a>
             <a
-              href="https://wa.me/256782554433?text=Hello%20DOS%20Mubende%20Light%20SSS,%20I%20have%20an%20academic%20question%20regarding%20my%20child"
+              href={`https://wa.me/${(settings.dosWhatsapp || '256782554433').replace(/\+/g, '')}?text=Hello%20DOS%20Mubende%20Light%20SSS,%20I%20have%20an%20academic%20question%20regarding%20my%20child`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 transition-colors"
@@ -444,11 +469,11 @@ export const ParentViews: React.FC<ParentViewsProps> = ({
               <span className="text-[10px] font-bold text-emerald-600 uppercase">Instant</span>
             </a>
             <a
-              href="mailto:academics@mubendelight.sc.ug?subject=Academic%20Inquiry%20-%20Mubende%20Light%20SSS"
+              href={`mailto:${settings.dosEmail || 'academics@mubendelight.sc.ug'}?subject=Academic%20Inquiry%20-%20Mubende%20Light%20SSS`}
               className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
             >
               <span className="flex items-center gap-2 font-semibold">
-                <Mail className="w-3.5 h-3.5 text-slate-500" /> academics@mubendelight.sc.ug
+                <Mail className="w-3.5 h-3.5 text-slate-500" /> {settings.dosEmail || 'academics@mubendelight.sc.ug'}
               </span>
               <span className="text-[10px] font-bold text-slate-500 uppercase">Email</span>
             </a>
@@ -479,8 +504,8 @@ export const ParentViews: React.FC<ParentViewsProps> = ({
               <Building className="w-4 h-4 text-blue-500" /> School Administration Desk:
             </div>
             <div className="text-slate-600 dark:text-slate-400 pl-5 leading-relaxed">
-              Email: <span className="font-semibold text-blue-600">admin@mubendelight.sc.ug</span><br />
-              Hotlines: <span className="font-semibold">+256 700 001 122</span> / <span className="font-semibold">+256 772 123 456</span><br />
+              Email: <span className="font-semibold text-blue-600">{settings.contactEmail || settings.email || 'admin@mubendelight.sc.ug'}</span><br />
+              Hotlines: <span className="font-semibold">{settings.contactPhone || settings.phone || '+256 700 123 456'}</span> / <span className="font-semibold">{settings.headteacherPhone || '+256 772 123 456'}</span><br />
               Registered Parent Email: <span className="font-mono text-slate-700 dark:text-slate-300 font-bold">{userEmail || 'Parent Account'}</span>
             </div>
           </div>
@@ -510,13 +535,13 @@ export const ParentViews: React.FC<ParentViewsProps> = ({
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <a
-              href="tel:+256772123456"
+              href={`tel:${settings.headteacherPhone || '+256 772 123 456'}`}
               className="flex-1 sm:flex-none text-center px-3.5 py-1.5 rounded-xl bg-white text-blue-700 text-xs font-bold hover:bg-blue-50 transition-colors shadow-xs"
             >
               Call Administration
             </a>
             <a
-              href="https://wa.me/256701987654?text=Hello%20Mubende%20Light%20SSS%20Administration"
+              href={`https://wa.me/${(settings.bursarWhatsapp || '256701987654').replace(/\+/g, '')}?text=Hello%20Mubende%20Light%20SSS%20Administration`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 sm:flex-none text-center px-3.5 py-1.5 rounded-xl bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors shadow-xs"
@@ -1275,7 +1300,7 @@ export const ParentViews: React.FC<ParentViewsProps> = ({
                   r =>
                     r.studentId === activeStudent?.id &&
                     r.term === selectedReport.term &&
-                    (r.year === selectedReport.year || !r.year)
+                    r.year === selectedReport.year
                 )
                 .map(r => (
                   <div
@@ -1317,13 +1342,29 @@ export const ParentViews: React.FC<ParentViewsProps> = ({
               <span className="font-bold text-slate-700 dark:text-slate-300">Terminal Average:</span>{' '}
               <span className="font-extrabold text-blue-600">{selectedReport.average}%</span>
             </div>
+            {selectedReport.performanceSummary && (
+              <div>
+                <span className="font-bold text-slate-700 dark:text-slate-300">Performance Summary:</span>{' '}
+                <span className="italic text-slate-600 dark:text-slate-400">{selectedReport.performanceSummary}</span>
+              </div>
+            )}
             <div>
               <span className="font-bold text-slate-700 dark:text-slate-300">
                 Headteacher Remarks:
               </span>{' '}
               <span className="italic text-slate-800 dark:text-slate-200">
-                &ldquo;{selectedReport.adminComment || selectedReport.teacherComment}&rdquo;
+                &ldquo;{selectedReport.adminComment || selectedReport.teacherComment || 'Satisfactory academic effort.'}&rdquo;
               </span>
+            </div>
+            {selectedReport.conduct && (
+              <div>
+                <span className="font-bold text-slate-700 dark:text-slate-300">Conduct &amp; Discipline:</span>{' '}
+                <span className="font-semibold text-slate-700 dark:text-slate-300">{selectedReport.conduct}</span>
+              </div>
+            )}
+            <div>
+              <span className="font-bold text-slate-700 dark:text-slate-300">Certified By:</span>{' '}
+              <span className="text-slate-600 dark:text-slate-400">{selectedReport.compiledBy || 'Headteacher Administrator'}</span>
             </div>
           </div>
 

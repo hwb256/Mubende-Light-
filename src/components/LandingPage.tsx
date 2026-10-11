@@ -84,20 +84,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectRole }) => {
 
         {/* Role Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl text-left">
-          {/* Admin Role */}
+          {/* Parent Role */}
           <div
-            onClick={() => onSelectRole('admin')}
-            className="group relative cursor-pointer p-6 rounded-2xl border transition-all duration-300 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-amber-500/60 hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-1 shadow-xs"
+            onClick={() => onSelectRole('parent')}
+            className="group relative cursor-pointer p-6 rounded-2xl border transition-all duration-300 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-blue-500/60 hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1 shadow-xs"
           >
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4 border border-amber-500/20 group-hover:scale-110 transition-transform">
-              <ShieldAlert className="w-6 h-6" />
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-4 border border-blue-500/20 group-hover:scale-110 transition-transform">
+              <Users className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-bold mb-1 text-slate-900 dark:text-white flex items-center justify-between">
-              Administrator
-              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
+              Parent / Guardian
+              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Admin access control, student admissions, staff directory, fees ledger, and payment approvals.
+              Check linked student performance, attendance, report cards, and settle school fees via Sure Pay.
             </p>
           </div>
 
@@ -118,20 +118,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectRole }) => {
             </p>
           </div>
 
-          {/* Parent Role */}
+          {/* Admin Role */}
           <div
-            onClick={() => onSelectRole('parent')}
-            className="group relative cursor-pointer p-6 rounded-2xl border transition-all duration-300 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-blue-500/60 hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1 shadow-xs"
+            onClick={() => onSelectRole('admin')}
+            className="group relative cursor-pointer p-6 rounded-2xl border transition-all duration-300 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-amber-500/60 hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-1 shadow-xs"
           >
-            <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-4 border border-blue-500/20 group-hover:scale-110 transition-transform">
-              <Users className="w-6 h-6" />
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4 border border-amber-500/20 group-hover:scale-110 transition-transform">
+              <ShieldAlert className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-bold mb-1 text-slate-900 dark:text-white flex items-center justify-between">
-              Parent / Guardian
-              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+              Administrator
+              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Check linked student performance, attendance, report cards, and settle school fees via Sure Pay.
+              Admin access control, student admissions, staff directory, fees ledger, and payment approvals.
             </p>
           </div>
         </div>

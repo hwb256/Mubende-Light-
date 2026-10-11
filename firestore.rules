@@ -118,7 +118,12 @@ service cloud.firestore {
     }
 
     match /reports/{repId} {
-      allow read: if isAuthenticated();
+      allow read: if isAdmin() || isTeacher() || (isAuthenticated() && resource.data.status == 'published');
+      allow write: if isAdmin();
+    }
+
+    match /reportCards/{repId} {
+      allow read: if isAdmin() || isTeacher() || (isAuthenticated() && resource.data.status == 'published');
       allow write: if isAdmin();
     }
 

@@ -90,10 +90,11 @@ export const AdminTeacherSubmissions: React.FC<AdminTeacherSubmissionsProps> = (
       const batch = writeBatch(db);
 
       // Copy each score into live 'results' collection
+      const effectiveYear = Number(sub.year || (sub as any).academicYear || 2026);
       items.forEach(item => {
         const safeSubject = encodeURIComponent(sub.subject || sub.subjectId || 'Subject');
         const safeExamType = encodeURIComponent(sub.examType || 'Exam');
-        const docId = `${item.studentId}_${safeSubject}_${sub.className}_${sub.term}_${sub.year}_${safeExamType}`;
+        const docId = `${item.studentId}_${safeSubject}_${sub.className}_${sub.term}_${effectiveYear}_${safeExamType}`;
         const resultRef = doc(db, 'results', docId);
 
         batch.set(resultRef, {
@@ -102,7 +103,7 @@ export const AdminTeacherSubmissions: React.FC<AdminTeacherSubmissionsProps> = (
           classId: sub.className,
           subjectId: sub.subject || sub.subjectId,
           term: sub.term,
-          year: sub.year,
+          year: effectiveYear,
           examType: sub.examType || 'Continuous Assessment',
           marks: Number(item.score ?? item.marks ?? 0),
           grade: item.grade || 'C',

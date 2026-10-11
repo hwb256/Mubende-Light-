@@ -18,20 +18,64 @@ export const SchoolSettingsProvider: React.FC<{ children: React.ReactNode }> = (
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
 
+  const sanitizeSchoolData = (raw: any): { clean: SystemSettings; needsPersist: boolean } => {
+    let name = (raw?.schoolName || DEFAULT_SETTINGS.schoolName).trim();
+    let motto = (raw?.motto || DEFAULT_SETTINGS.motto).trim();
+    let needsPersist = false;
+
+    // Purge any legacy Kasenyi mentions from Firestore and enforce Mubende Light
+    if (/kasenyi/i.test(name) || !name) {
+      name = DEFAULT_SETTINGS.schoolName;
+      needsPersist = true;
+    }
+    if (/kasenyi/i.test(motto) || !motto) {
+      motto = DEFAULT_SETTINGS.motto;
+      needsPersist = true;
+    }
+    if (!raw?.generalTermFee) {
+      needsPersist = true;
+    }
+
+    const clean: SystemSettings = {
+      ...DEFAULT_SETTINGS,
+      ...raw,
+      schoolName: name,
+      motto: motto,
+      generalTermFee: Number(raw?.generalTermFee || DEFAULT_SETTINGS.generalTermFee || 198000),
+      currentTerm: raw?.currentTerm || raw?.term || DEFAULT_SETTINGS.currentTerm,
+      currentYear: Number(raw?.currentYear || raw?.academicYear || DEFAULT_SETTINGS.currentYear),
+      academicYear: Number(raw?.academicYear || raw?.currentYear || DEFAULT_SETTINGS.academicYear),
+      headteacherPhone: raw?.headteacherPhone || DEFAULT_SETTINGS.headteacherPhone,
+      headteacherEmail: raw?.headteacherEmail || DEFAULT_SETTINGS.headteacherEmail,
+      headteacherWhatsapp: raw?.headteacherWhatsapp || DEFAULT_SETTINGS.headteacherWhatsapp,
+      bursarPhone: raw?.bursarPhone || DEFAULT_SETTINGS.bursarPhone,
+      bursarEmail: raw?.bursarEmail || DEFAULT_SETTINGS.bursarEmail,
+      bursarWhatsapp: raw?.bursarWhatsapp || DEFAULT_SETTINGS.bursarWhatsapp,
+      dosPhone: raw?.dosPhone || DEFAULT_SETTINGS.dosPhone,
+      dosEmail: raw?.dosEmail || DEFAULT_SETTINGS.dosEmail,
+      dosWhatsapp: raw?.dosWhatsapp || DEFAULT_SETTINGS.dosWhatsapp,
+    };
+
+    return { clean, needsPersist };
+  };
+
   useEffect(() => {
     // Listen to settings/schoolSettings
     const settingsDocRef = doc(db, 'settings', 'schoolSettings');
     const unsubscribe = onSnapshot(settingsDocRef, async (snap) => {
       try {
         if (snap.exists()) {
-          const data = snap.data();
-          setSettings({
-            ...DEFAULT_SETTINGS,
-            ...data,
-            currentTerm: data.currentTerm || data.term || DEFAULT_SETTINGS.currentTerm,
-            currentYear: Number(data.currentYear || data.academicYear || DEFAULT_SETTINGS.currentYear),
-          });
+          const rawData = snap.data();
+          const { clean, needsPersist } = sanitizeSchoolData(rawData);
+          setSettings(clean);
           setLoading(false);
+
+          if (needsPersist) {
+            setDoc(settingsDocRef, {
+              ...clean,
+              updatedAt: serverTimestamp(),
+            }, { merge: true }).catch(() => {});
+          }
         } else {
           // Check school_config as fallback
           let fallbackData = null;
@@ -46,12 +90,12 @@ export const SchoolSettingsProvider: React.FC<{ children: React.ReactNode }> = (
           }
 
           if (fallbackData) {
-            setSettings({
-              ...DEFAULT_SETTINGS,
-              ...fallbackData,
-              currentTerm: fallbackData.currentTerm || fallbackData.term || DEFAULT_SETTINGS.currentTerm,
-              currentYear: Number(fallbackData.currentYear || fallbackData.academicYear || DEFAULT_SETTINGS.currentYear),
-            });
+            const { clean } = sanitizeSchoolData(fallbackData);
+            setSettings(clean);
+            setDoc(settingsDocRef, {
+              ...clean,
+              updatedAt: serverTimestamp(),
+            }, { merge: true }).catch(() => {});
           } else {
             setDoc(settingsDocRef, {
               ...DEFAULT_SETTINGS,

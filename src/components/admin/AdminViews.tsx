@@ -56,6 +56,7 @@ import {
 } from 'recharts';
 import { db, secondaryAuth } from '../../firebase';
 import { useSchoolSettings } from '../../context/SchoolSettingsContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   Student,
   Teacher,
@@ -131,6 +132,11 @@ export const AdminViews: React.FC<AdminViewsProps> = ({
   onRefreshData,
 }) => {
   const { settings, currentTerm, currentYear } = useSchoolSettings();
+  const { currentUser, userProfile } = useAuth();
+  const adminDisplayName =
+    userProfile?.fullName ||
+    currentUser?.displayName ||
+    (currentUser?.email ? currentUser.email.split('@')[0] : 'Administrator');
 
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
@@ -370,9 +376,9 @@ export const AdminViews: React.FC<AdminViewsProps> = ({
           className: stuClass,
           term: currentTerm,
           year: currentYear,
-          totalFee: 1200000,
+          totalFee: settings.generalTermFee || 198000,
           paidAmount: 0,
-          balance: 1200000,
+          balance: settings.generalTermFee || 198000,
           status: 'unpaid',
           updatedAt: serverTimestamp(),
         }, { merge: true });
@@ -1483,8 +1489,11 @@ export const AdminViews: React.FC<AdminViewsProps> = ({
                 <h2 className="text-base font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
                   System Analytics Dashboard
                 </h2>
+                <p className="text-xs font-bold text-amber-500 dark:text-amber-400 mt-0.5">
+                  Welcome back, {adminDisplayName}!
+                </p>
                 <p className="text-[11px] text-slate-500">
-                  Real-time synchronization across Mubende Light SSS
+                  Real-time synchronization across {settings.schoolName || 'Mubende Light SSS'}
                 </p>
               </div>
             </div>
